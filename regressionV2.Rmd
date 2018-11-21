@@ -1,0 +1,61 @@
+---
+title: "Regression V2"
+output:
+  pdf_document: 
+    fig_width: 12
+    toc_depth: 8
+  html_document:
+    fig_height: 8
+    fig_width: 15
+    toc_depth: 30
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r message=FALSE}
+
+library("openxlsx")
+library("ggplot2")
+library("forecast")
+library("cowplot")
+library("dplyr")
+library("car")
+library("Hmisc")
+```
+
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 1000)
+regress_data <- read.xlsx(xlsxFile = './Data-after-cleanning-v2.xlsx',sheet=1,colNames=TRUE)
+regress_data$X1 <- NULL
+regress_data$X10 <- NULL
+regress_data <- regress_data[-nrow(regress_data),]
+
+
+summary(regress_data) # For descriptive statistics
+rcorr(as.matrix(regress_data)) # For correlation
+
+# 1). 
+model1 <- lm(CAR0 ~ DealValue + RelativeSize + Division + GeographicalDistance, data=regress_data)
+summary(model1)
+vif(model1)
+
+# 2). 
+
+model2 <- lm(CAR0 ~ DealValue + RelativeSize + Division + GeographicalDistance + Premium, data=regress_data)
+summary(model2)
+vif(model2)
+
+# 3).
+
+model3 <- lm(CAR0 ~ DealValue + RelativeSize + Division + GeographicalDistance + Premium + UncertaintyAvoidance + Individualism, data=regress_data)
+summary(model3)
+vif(model3)
+
+# 4). 
+
+model4 <- lm(CAR0 ~ DealValue + RelativeSize + Division + GeographicalDistance + Premium + UncertaintyAvoidance + Individualism +Premium*UncertaintyAvoidance + Premium*Individualism, data=regress_data)
+summary(model4)
+vif(model4)
+
+
+```

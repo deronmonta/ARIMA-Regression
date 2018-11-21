@@ -1,0 +1,122 @@
+---
+title: "R Notebook for ARIMA and price regression"
+output:
+  html_document:
+    df_print: paged
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library("openxlsx")
+library("ggplot2")
+library("forecast")
+library("cowplot")
+library("dplyr")
+```
+The following is the ARIMA
+
+```{r ARIMA}
+tsSales = read.xlsx('./data-for-regression1.xlsx',sheet=2,colNames=TRUE,rowNames=TRUE) # Read the second sheet for time series data
+tsSales$NA. <-NULL
+tsSales <- ts(tsSales)# Transform to time series data
+
+lamdaX <- BoxCox.lambda(tsSales)
+fitX_ARIMA <- auto.arima(tsSales[2,c(1,2,3,4,5)], lambda = lamdaX, D = 1)
+
+fcstX_ARIMA <- forecast(fitX_ARIMA, h = 5) 
+write.csv(as.data.frame(fcstX_ARIMA), " fcstX_ARIMA.csv")
+
+autoplot(fcstX_ARIMA, ylab = "Sales Volume of X" + theme(legend.position = "bottom", plot.title = element_text(hjust = 0.5)))
+
+```
+This is the regression part
+1) CAR= β_1 Deal value+ β_2 relative size+β_3 industry relatedness (dummy variable)+β_4 geographical distance
+
+2) CAR= β_1 Deal value+ β_2 relative size+β_3 industry relatedness (dummy variable)+β_4 geographical distance+ β_5 acquisition premium
+
+3) CAR= β_1 Deal value+ β_2 relative size+β_3 industry relatedness (dummy variable)+β_4 geographical distance+ β_5 acquisition premium+β_6  uncertainty avoidance+ β_7  individualism  
+#(--> moderators as basic terms to see the independent effect)
+
+4) CAR= β_1 Deal value+ β_2 relative size+ β_3 industry relatedness (dummy variable)+β_4 geographical distance + β_5 acquisition premium+ β_8  acquisition premium*uncertainty avoidance+ β_9 acqusition premium*individualism 
+#(--> moderators as interaction terms to include both direct and moderating effects)
+```{r Regression}
+regression_data = read.xlsx(xlsxFile='./data-for-regression1.xlsx',sheet=1,colNames=TRUE,rowNames=TRUE) # Read the first sheet regression data
+
+# 1)
+model1 <- lm(CARdependent ~ Dealvaluemillion + Relativesize + Businessrelatedness + Geographicaldistance, data=regression_data)
+summary(model1)
+# 2) 
+model2 <- lm(CARdependent ~ Dealvaluemillion + Relativesize + Businessrelatedness + Geographicaldistance + Premium, data=regression_data)
+summary(model2)
+
+# 3)
+model3 <- lm(CARdependent ~ Dealvaluemillion + Relativesize + Businessrelatedness + Geographicaldistance + Premium+Uncertaintyavoidance+Individualism, data=regression_data)
+summary(model3)
+```
+
+
+
+
+```{r}
+remove_outliers <- function(x, na.rm = TRUE, ...) {
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = na.rm, ...)
+  H <- 1.5 * IQR(x, na.rm = na.rm)
+  y <- x
+  y[x < (qnt[1] - H)] <- NA
+  y[x > (qnt[2] + H)] <- NA
+  y
+}
+
+
+outlier_data <- read.xlsx(xlsxFile = './Data-after-cleanning.xlsx',sheet=1,colNames=TRUE)
+outlier_data$X10 <- NULL
+outlier_data <- outlier_data[-nrow(outlier_data),]
+outlier_data$Rowname <- NULL
+
+for (i in 1:ncol(outlier_data)){
+  
+  removed_column <- remove_outliers(outlier_data[,i])
+  outlier_data[,i] <- removed_column
+  
+}
+outlier_values <- boxplot.stats(outlier_data$CAR0)$out  # outlier values.
+```
+
+
+```{r}
+regress_data <- read.xlsx(xlsxFile = './Data-after-cleanning-v2.xlsx',sheet=1,colNames=TRUE)
+regress_data$X1 <- NULL
+regress_data$X10 <- NULL
+regress_data <- regress_data[-nrow(regress_data),]
+
+# 1). 
+model1 <- lm(CAR0 ~ DealValue + RelativeSize + Division + GeographicalDistance, data=regress_data)
+summary(model1)
+
+# 2). 
+
+model2 <- lm(CAR0 ~ DealValue + RelativeSize + Division + GeographicalDistance + Premium, data=regress_data)
+summary(model2)
+
+# 3).
+
+model3 <- lm(CAR0 ~ DealValue + RelativeSize + Division + GeographicalDistance + Premium + UncertaintyAvoidance + Individualism, data=regress_data)
+summary(model3)
+
+# 4). 
+
+model4 <- lm(CAR0 ~ DealValue + RelativeSize + Division + GeographicalDistance + Premium + UncertaintyAvoidance + Individualism +Premium*UncertaintyAvoidance + Premium*Individualism, data=regress_data)
+summary(model4)
+
+
+```
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
